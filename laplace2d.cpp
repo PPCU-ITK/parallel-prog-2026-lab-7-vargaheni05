@@ -13,7 +13,7 @@ int main(int argc, const char** argv)
   //Size along x
   int imax = 4096;
   //Size along x
-  int iter_max = 100;
+  int iter_max = 1000;
 
   double pi  = 2.0 * asin(1.0);
   const double tol = 1.0e-6;
@@ -56,10 +56,13 @@ int main(int argc, const char** argv)
   for (int j = 1; j < jmax+2; j++)
     Anew[(j)*(imax+2)+jmax+1] = sin(pi * j / (jmax+1))*expf(-pi);
   auto t1 = std::chrono::high_resolution_clock::now();
+  //#pragma omp target data \
+    map(A[0:(imax+2)*(jmax+2)]) \
+    map(Anew[0:(imax+2)*(jmax+2)])
   while ( error > tol && iter < iter_max )
   {
     error = 0.0;
-#pragma omp parallel for reduction(max:error)
+#pragma omp target teams distribute parallel for reduction(max:error) collapse(2)
     for( int j = 1; j < jmax+1; j++ )
     {
       for( int i = 1; i < imax+1; i++)
@@ -69,7 +72,7 @@ int main(int argc, const char** argv)
         error = fmax( error, fabs(Anew[(j)*(imax+2)+i]-A[(j)*(imax+2)+i]));
       }
     }
-#pragma omp parallel for
+#pragma omp target teams distribute parallel for collapse(2)
     for( int j = 1; j < jmax+1; j++ )
     {
       for( int i = 1; i < imax+1; i++)

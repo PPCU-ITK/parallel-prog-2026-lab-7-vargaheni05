@@ -6,8 +6,32 @@
 #include <algorithm>
 #include <sstream>
 
+#include <omp.h>
+#include <chrono>
 
 using namespace std;
+
+// ------------------------------------------------------------
+// A simple struct to hold loop statistics
+// ------------------------------------------------------------
+struct LoopStat {
+    const char* name;
+    int calls = 0;
+    double total_ms = 0.0;
+};
+
+// -----------------------------------------------------------------
+// Function to print loop statistics
+// -----------------------------------------------------------------
+static inline void print_stat(std::ostream& os, const LoopStat& s) {
+    const double total_s = s.total_ms * 1e-3;
+    const double avg_us   = (s.calls > 0) ? (s.total_ms * 1e3) / s.calls : 0.0;
+
+    os << std::setw(40) << std::left << s.name
+       << " ran " << std::setw(4) << s.calls << " times;" 
+       << " total " << std::setw(7) << std::fixed << std::setprecision(6) << total_s << " s;"
+       << " avg " << std::fixed << std::setprecision(3) << avg_us << " µs\n";
+}
 
 // ------------------------------------------------------------
 // Global parameters
@@ -55,9 +79,29 @@ void fluxY(double rho, double rhou, double rhov, double E,
 // Main simulation routine
 // ------------------------------------------------------------
 int main(){
+    // Open output file for writing results
+    std::ofstream out("output_cpu_16x.txt");
+    // Check if output file opened successfully
+    if (!out) {
+        std::cerr << "Error opening output_cpu_16x.txt\n";
+        return 1;
+    }
+
+    // Create loop statistics variables
+    LoopStat st_main{"MAIN time-stepping loop"};
+
+    LoopStat st_bc_left{"Boundary condition left (inflow)"};
+    LoopStat st_bc_right{"Boundary condition right (outflow)"};
+    LoopStat st_bc_bottom{"Boundary condition bottom (reflective)"};
+    LoopStat st_bc_top{"Boundary condition top (reflective)"};
+
+    LoopStat st_update{"Update interior (Lax-Friedrichs)"};
+    LoopStat st_copy{"Copy back new -> old"};
+    LoopStat st_kin{"Kinetic energy sum"};
+
     // ----- Grid and domain parameters -----
-    const int Nx = 200;         // Number of cells in x (excluding ghost cells)
-    const int Ny = 100;         // Number of cells in y
+    const int Nx = 3200;         // Number of cells in x (excluding ghost cells)
+    const int Ny = 1600;         // Number of cells in y
     const double Lx = 2.0;      // Domain length in x
     const double Ly = 1.0;      // Domain length in y
     const double dx = Lx / Nx;
@@ -66,30 +110,18 @@ int main(){
     // Create flat arrays (with ghost cells)
     const int total_size = (Nx + 2) * (Ny + 2);
     
-    double* rho = (double*)malloc(total_size * sizeof(double));
-    double* rhou = (double*)malloc(total_size * sizeof(double));
-    double* rhov = (double*)malloc(total_size * sizeof(double));
-    double* E = (double*)malloc(total_size * sizeof(double));
-    double* rho_new = (double*)malloc(total_size * sizeof(double));
-    double* rhou_new = (double*)malloc(total_size * sizeof(double));
-    double* rhov_new = (double*)malloc(total_size * sizeof(double));
-    double* E_new = (double*)malloc(total_size * sizeof(double));
-
-    // Boolean mask for solid cells
-    bool* solid = (bool*)malloc(total_size * sizeof(bool));
-
-    // Remember to initialize if needed
-    for (int i = 0; i < total_size; i++) {
-      rho[i] = 0.0;
-      rhou[i] = 0.0;
-      rhov[i] = 0.0;
-      E[i] = 0.0;
-      rho_new[i] = 0.0;
-      rhou_new[i] = 0.0;
-      rhov_new[i] = 0.0;
-      E_new[i] = 0.0;
-      solid[i] = false;
-    }
+    vector<double> rho(total_size);
+    vector<double> rhou(total_size);
+    vector<double> rhov(total_size);
+    vector<double> E(total_size);
+    
+    vector<double> rho_new(total_size);
+    vector<double> rhou_new(total_size);
+    vector<double> rhov_new(total_size);
+    vector<double> E_new(total_size);
+    
+    // A mask to mark solid cells (inside the cylinder)
+    vector<int> solid(total_size, 0);
 
     // ----- Obstacle (cylinder) parameters -----
     const double cx = 0.5;      // Cylinder center x
@@ -134,39 +166,66 @@ int main(){
     // ----- Time stepping parameters -----
     const int nSteps = 2000;
 
+    auto t1_main = std::chrono::high_resolution_clock::now();
     // ----- Main time-stepping loop -----
     for (int n = 0; n < nSteps; n++){
+        st_bc_left.calls++;
+        auto t1_bc_left = std::chrono::high_resolution_clock::now();
         // --- Apply boundary conditions on ghost cells ---
         // Left boundary (inflow): fixed free-stream state
+        #pragma omp parallel for schedule(static)
         for (int j = 0; j < Ny+2; j++){
             rho[0*(Ny+2)+j] = rho0;
             rhou[0*(Ny+2)+j] = rho0*u0;
             rhov[0*(Ny+2)+j] = rho0*v0;
             E[0*(Ny+2)+j] = E0;
         }
+        auto t2_bc_left = std::chrono::high_resolution_clock::now();
+        st_bc_left.total_ms += std::chrono::duration<double, std::milli>(t2_bc_left - t1_bc_left).count();
+
+        st_bc_right.calls++;
+        auto t1_bc_right = std::chrono::high_resolution_clock::now();
         // Right boundary (outflow): copy from the interior
+        #pragma omp parallel for schedule(static)
         for (int j = 0; j < Ny+2; j++){
             rho[(Nx+1)*(Ny+2)+j] = rho[Nx*(Ny+2)+j];
             rhou[(Nx+1)*(Ny+2)+j] = rhou[Nx*(Ny+2)+j];
             rhov[(Nx+1)*(Ny+2)+j] = rhov[Nx*(Ny+2)+j];
             E[(Nx+1)*(Ny+2)+j] = E[Nx*(Ny+2)+j];
         }
+        auto t2_bc_right = std::chrono::high_resolution_clock::now();
+        st_bc_right.total_ms += std::chrono::duration<double, std::milli>(t2_bc_right - t1_bc_right).count();
+
+        st_bc_bottom.calls++;
+        auto t1_bc_bottom = std::chrono::high_resolution_clock::now();
         // Bottom boundary: reflective
+        #pragma omp parallel for schedule(static)
         for (int i = 0; i < Nx+2; i++){
             rho[i*(Ny+2)+0] = rho[i*(Ny+2)+1];
             rhou[i*(Ny+2)+0] = rhou[i*(Ny+2)+1];
             rhov[i*(Ny+2)+0] = -rhov[i*(Ny+2)+1];
             E[i*(Ny+2)+0] = E[i*(Ny+2)+1];
         }
+        auto t2_bc_bottom = std::chrono::high_resolution_clock::now();
+        st_bc_bottom.total_ms += std::chrono::duration<double, std::milli>(t2_bc_bottom - t1_bc_bottom).count();
+
+        st_bc_top.calls++;
+        auto t1_bc_top = std::chrono::high_resolution_clock::now();
         // Top boundary: reflective
+        #pragma omp parallel for schedule(static)
         for (int i = 0; i < Nx+2; i++){
             rho[i*(Ny+2)+(Ny+1)] = rho[i*(Ny+2)+Ny];
             rhou[i*(Ny+2)+(Ny+1)] = rhou[i*(Ny+2)+Ny];
             rhov[i*(Ny+2)+(Ny+1)] = -rhov[i*(Ny+2)+Ny];
             E[i*(Ny+2)+(Ny+1)] = E[i*(Ny+2)+Ny];
         }
+        auto t2_bc_top = std::chrono::high_resolution_clock::now();
+        st_bc_top.total_ms += std::chrono::duration<double, std::milli>(t2_bc_top - t1_bc_top).count();
 
+        st_update.calls++;
+        auto t1_update = std::chrono::high_resolution_clock::now();
         // --- Update interior cells using a Lax-Friedrichs scheme ---
+        #pragma omp parallel for collapse(2) schedule(static)
         for (int i = 1; i <= Nx; i++){
             for (int j = 1; j <= Ny; j++){
                 // If the cell is inside the solid obstacle, do not update it
@@ -180,13 +239,13 @@ int main(){
 
                 // Compute a Lax averaging of the four neighboring cells
                 rho_new[i*(Ny+2)+j] = 0.25 * (rho[(i+1)*(Ny+2)+j] + rho[(i-1)*(Ny+2)+j] + 
-                                             rho[i*(Ny+2)+(j+1)] + rho[i*(Ny+2)+(j-1)]);
+                                            rho[i*(Ny+2)+(j+1)] + rho[i*(Ny+2)+(j-1)]);
                 rhou_new[i*(Ny+2)+j] = 0.25 * (rhou[(i+1)*(Ny+2)+j] + rhou[(i-1)*(Ny+2)+j] + 
-                                              rhou[i*(Ny+2)+(j+1)] + rhou[i*(Ny+2)+(j-1)]);
+                                            rhou[i*(Ny+2)+(j+1)] + rhou[i*(Ny+2)+(j-1)]);
                 rhov_new[i*(Ny+2)+j] = 0.25 * (rhov[(i+1)*(Ny+2)+j] + rhov[(i-1)*(Ny+2)+j] + 
-                                              rhov[i*(Ny+2)+(j+1)] + rhov[i*(Ny+2)+(j-1)]);
+                                            rhov[i*(Ny+2)+(j+1)] + rhov[i*(Ny+2)+(j-1)]);
                 E_new[i*(Ny+2)+j] = 0.25 * (E[(i+1)*(Ny+2)+j] + E[(i-1)*(Ny+2)+j] + 
-                                           E[i*(Ny+2)+(j+1)] + E[i*(Ny+2)+(j-1)]);
+                                        E[i*(Ny+2)+(j+1)] + E[i*(Ny+2)+(j-1)]);
 
                 // Compute fluxes
                 double fx_rho1, fx_rhou1, fx_rhov1, fx_E1;
@@ -195,13 +254,13 @@ int main(){
                 double fy_rho2, fy_rhou2, fy_rhov2, fy_E2;
 
                 fluxX(rho[(i+1)*(Ny+2)+j], rhou[(i+1)*(Ny+2)+j], rhov[(i+1)*(Ny+2)+j], E[(i+1)*(Ny+2)+j],
-                      fx_rho1, fx_rhou1, fx_rhov1, fx_E1);
+                    fx_rho1, fx_rhou1, fx_rhov1, fx_E1);
                 fluxX(rho[(i-1)*(Ny+2)+j], rhou[(i-1)*(Ny+2)+j], rhov[(i-1)*(Ny+2)+j], E[(i-1)*(Ny+2)+j],
-                      fx_rho2, fx_rhou2, fx_rhov2, fx_E2);
+                    fx_rho2, fx_rhou2, fx_rhov2, fx_E2);
                 fluxY(rho[i*(Ny+2)+(j+1)], rhou[i*(Ny+2)+(j+1)], rhov[i*(Ny+2)+(j+1)], E[i*(Ny+2)+(j+1)],
-                      fy_rho1, fy_rhou1, fy_rhov1, fy_E1);
+                    fy_rho1, fy_rhou1, fy_rhov1, fy_E1);
                 fluxY(rho[i*(Ny+2)+(j-1)], rhou[i*(Ny+2)+(j-1)], rhov[i*(Ny+2)+(j-1)], E[i*(Ny+2)+(j-1)],
-                      fy_rho2, fy_rhou2, fy_rhov2, fy_E2);
+                    fy_rho2, fy_rhou2, fy_rhov2, fy_E2);
 
                 // Apply flux differences
                 double dtdx = dt / (2 * dx);
@@ -213,8 +272,13 @@ int main(){
                 E_new[i*(Ny+2)+j] -= dtdx * (fx_E1 - fx_E2) + dtdy * (fy_E1 - fy_E2);
             }
         }
+        auto t2_update = std::chrono::high_resolution_clock::now();
+        st_update.total_ms += std::chrono::duration<double, std::milli>(t2_update - t1_update).count();
 
+        st_copy.calls++;
+        auto t1_copy = std::chrono::high_resolution_clock::now();
         // Copy updated values back
+        #pragma omp parallel for collapse(2) schedule(static)
         for (int i = 1; i <= Nx; i++){
             for (int j = 1; j <= Ny; j++){
                 rho[i*(Ny+2)+j] = rho_new[i*(Ny+2)+j];
@@ -223,9 +287,14 @@ int main(){
                 E[i*(Ny+2)+j] = E_new[i*(Ny+2)+j];
             }
         }
+        auto t2_copy = std::chrono::high_resolution_clock::now();
+        st_copy.total_ms += std::chrono::duration<double, std::milli>(t2_copy - t1_copy).count();
 
+        st_kin.calls++;
+        auto t1_kin = std::chrono::high_resolution_clock::now();
         // Calculate total kinetic energy
         double total_kinetic = 0.0;
+        #pragma omp parallel for collapse(2) reduction(+:total_kinetic) schedule(static)
         for (int i = 1; i <= Nx; i++) {
             for (int j = 1; j <= Ny; j++) {
                 double u = rhou[i*(Ny+2)+j] / rho[i*(Ny+2)+j];
@@ -233,13 +302,30 @@ int main(){
                 total_kinetic += 0.5 * rho[i*(Ny+2)+j] * (u * u + v * v);
             }
         }
+        auto t2_kin = std::chrono::high_resolution_clock::now();
+        st_kin.total_ms += std::chrono::duration<double, std::milli>(t2_kin - t1_kin).count();
 
-        // Optional: output progress and write VTK file every 50 time steps
-        if (n % 50 == 0) {
-            cout << "Step " << n << " completed, total kinetic energy: " << total_kinetic << endl;
+        if ((n % 50 == 0) || n == nSteps - 1) {
+            out << "Step " << n << " completed, total kinetic energy: " << total_kinetic << "\n";
         }
     }
 
+    auto t2_main = std::chrono::high_resolution_clock::now();
+    st_main.calls = 1;
+    st_main.total_ms = std::chrono::duration<double, std::milli>(t2_main - t1_main).count();
+    
+
+    // Print statistics
+    out << "\n============================================ TIMING SUMMARY ============================================\n";
+    print_stat(out, st_main);
+    print_stat(out, st_bc_left);
+    print_stat(out, st_bc_right);
+    print_stat(out, st_bc_bottom);
+    print_stat(out, st_bc_top);
+    print_stat(out, st_update);
+    print_stat(out, st_copy);
+    print_stat(out, st_kin);
+    out << "========================================================================================================\n";
+
     return 0;
 }
-

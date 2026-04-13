@@ -1,0 +1,52 @@
+Step 0 completed, total kinetic energy: 2.51952e+06
+Step 50 completed, total kinetic energy: 2.51642e+06
+Step 100 completed, total kinetic energy: 2.51426e+06
+Step 150 completed, total kinetic energy: 2.51226e+06
+Step 200 completed, total kinetic energy: 2.51033e+06
+Step 250 completed, total kinetic energy: 2.50846e+06
+Step 300 completed, total kinetic energy: 2.50663e+06
+Step 350 completed, total kinetic energy: 2.50483e+06
+Step 400 completed, total kinetic energy: 2.50307e+06
+Step 450 completed, total kinetic energy: 2.50132e+06
+Step 500 completed, total kinetic energy: 2.49961e+06
+Step 550 completed, total kinetic energy: 2.49792e+06
+Step 600 completed, total kinetic energy: 2.49625e+06
+Step 650 completed, total kinetic energy: 2.4946e+06
+Step 700 completed, total kinetic energy: 2.49297e+06
+Step 750 completed, total kinetic energy: 2.49137e+06
+Step 800 completed, total kinetic energy: 2.48978e+06
+Step 850 completed, total kinetic energy: 2.48821e+06
+Step 900 completed, total kinetic energy: 2.48666e+06
+Step 950 completed, total kinetic energy: 2.48513e+06
+Step 1000 completed, total kinetic energy: 2.48361e+06
+Step 1050 completed, total kinetic energy: 2.48211e+06
+Step 1100 completed, total kinetic energy: 2.48062e+06
+Step 1150 completed, total kinetic energy: 2.47915e+06
+Step 1200 completed, total kinetic energy: 2.47769e+06
+Step 1250 completed, total kinetic energy: 2.47625e+06
+Step 1300 completed, total kinetic energy: 2.47481e+06
+Step 1350 completed, total kinetic energy: 2.47339e+06
+Step 1400 completed, total kinetic energy: 2.47197e+06
+Step 1450 completed, total kinetic energy: 2.47057e+06
+Step 1500 completed, total kinetic energy: 2.46917e+06
+Step 1550 completed, total kinetic energy: 2.46779e+06
+Step 1600 completed, total kinetic energy: 2.46641e+06
+Step 1650 completed, total kinetic energy: 2.46504e+06
+Step 1700 completed, total kinetic energy: 2.46367e+06
+Step 1750 completed, total kinetic energy: 2.46231e+06
+Step 1800 completed, total kinetic energy: 2.46096e+06
+Step 1850 completed, total kinetic energy: 2.45961e+06
+Step 1900 completed, total kinetic energy: 2.45827e+06
+Step 1950 completed, total kinetic energy: 2.45694e+06
+Step 1999 completed, total kinetic energy: 2.45563e+06
+
+============================================ TIMING SUMMARY ============================================
+MAIN time-stepping loop                  ran 1    times; total 2.074243 s; avg 2074243.486 µs
+Boundary condition left (inflow)         ran 2000 times; total 0.018896 s; avg 9.448 µs
+Boundary condition right (outflow)       ran 2000 times; total 0.019592 s; avg 9.796 µs
+Boundary condition bottom (reflective)   ran 2000 times; total 0.023564 s; avg 11.782 µs
+Boundary condition top (reflective)      ran 2000 times; total 0.023352 s; avg 11.676 µs
+Update interior (Lax-Friedrichs)         ran 2000 times; total 0.861036 s; avg 430.518 µs
+Copy back new -> old                     ran 2000 times; total 0.494262 s; avg 247.131 µs
+Kinetic energy sum                       ran 2000 times; total 0.276960 s; avg 138.480 µs
+========================================================================================================

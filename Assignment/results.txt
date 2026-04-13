@@ -1,0 +1,51 @@
+Assignment - Results & Observations
+----------------------------------------------------------------
+
+1. Code Modifications
+---------------------
+
+For CPU parallelization, we've already had the necessary modifications in the sequential Euler solver:
+OpenMP was applied to all computationally intensive loops, which resulted in a shared-memory parallel CPU version.
+Now the goal was to add OpenMP GPU offload to our project. For this, I needed the following modifications:
+- #pragma omp target teams distribute parallel for used for GPU kernels
+- collapse(2) used for 2D loops
+- a target data region was added to keep arrays on the GPU during the full time-stepping loop, reducing data transfer overhead
+- helper functions (pressure, fluxX, fluxY) were marked with: #pragma omp declare target, to allow execution on the GPU
+- std::vector access was replaced with raw pointers (.data()) inside GPU regions to ensure correct memory access and avoid illegal address errors
+
+2. Results
+----------
+
+The runtime of the CPU and GPU implementations was measured for increasing problem sizes.
+
+============================ MEASURED RUNTIMES ===============================
+Size  |   Nx x Ny   |   CPU time (s)  |	 GPU time (s)  |   Speedup (CPU/GPU)
+------------------------------------------------------------------------------
+ 1x	  |  200 x 100	|     0.264	      |     0.503	   |       0.52
+ 4x	  |  800 x 400	|     3.909	      |     0.586	   |       6.67
+ 8x	  | 1600 x 800	|    20.940	      |     0.911	   |      22.98
+16x	  | 3200 x 1600	|   113.552	      |     2.074	   |      54.75
+==============================================================================
+
+3. Observations
+---------------
+
+- The CPU runtime increases rapidly with problem size (roughly quadratic scaling due to 2D grid).
+- The GPU runtime increases much more slowly, showing good scalability.
+- For the smallest problem (1x), the GPU is slower than the CPU.
+- For larger problems (4x, 8x, 16x), the GPU becomes significantly faster.
+- The final kinetic energy values are consistent between CPU and GPU runs, confirming correctness of the implementation.
+
+4. Conclusion
+-------------
+
+The GPU offloaded implementation provides significant performance improvements for larger problem sizes, while maintaining numerical correctness.
+For small problem sizes, the GPU is slower due to:
+- kernel launch overhead
+- reduction overhead
+- insufficient parallel workload to fully utilize the GPU.
+However, as the grid size increases:
+- the parallel workload grows
+- GPU resources are utilized more efficiently
+- computation dominates over overhead.
+This results in substantial speedups, demonstrating that GPU offloading is highly beneficial for large-scale simulations.

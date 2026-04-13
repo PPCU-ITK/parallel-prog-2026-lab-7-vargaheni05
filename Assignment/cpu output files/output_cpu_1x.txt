@@ -1,0 +1,52 @@
+Step 0 completed, total kinetic energy: 9825.76
+Step 50 completed, total kinetic energy: 9595.83
+Step 100 completed, total kinetic energy: 9419.26
+Step 150 completed, total kinetic energy: 9254.27
+Step 200 completed, total kinetic energy: 9096.12
+Step 250 completed, total kinetic energy: 8941.93
+Step 300 completed, total kinetic energy: 8789.82
+Step 350 completed, total kinetic energy: 8638.8
+Step 400 completed, total kinetic energy: 8488.7
+Step 450 completed, total kinetic energy: 8340.5
+Step 500 completed, total kinetic energy: 8200.49
+Step 550 completed, total kinetic energy: 8084
+Step 600 completed, total kinetic energy: 8004.93
+Step 650 completed, total kinetic energy: 7962.46
+Step 700 completed, total kinetic energy: 7943.53
+Step 750 completed, total kinetic energy: 7933.54
+Step 800 completed, total kinetic energy: 7923.31
+Step 850 completed, total kinetic energy: 7909.65
+Step 900 completed, total kinetic energy: 7892.89
+Step 950 completed, total kinetic energy: 7874.44
+Step 1000 completed, total kinetic energy: 7855.53
+Step 1050 completed, total kinetic energy: 7836.97
+Step 1100 completed, total kinetic energy: 7819.23
+Step 1150 completed, total kinetic energy: 7802.63
+Step 1200 completed, total kinetic energy: 7787.42
+Step 1250 completed, total kinetic energy: 7773.83
+Step 1300 completed, total kinetic energy: 7762.06
+Step 1350 completed, total kinetic energy: 7752.25
+Step 1400 completed, total kinetic energy: 7744.47
+Step 1450 completed, total kinetic energy: 7738.68
+Step 1500 completed, total kinetic energy: 7734.74
+Step 1550 completed, total kinetic energy: 7732.46
+Step 1600 completed, total kinetic energy: 7731.59
+Step 1650 completed, total kinetic energy: 7731.88
+Step 1700 completed, total kinetic energy: 7733.08
+Step 1750 completed, total kinetic energy: 7734.95
+Step 1800 completed, total kinetic energy: 7737.31
+Step 1850 completed, total kinetic energy: 7739.97
+Step 1900 completed, total kinetic energy: 7742.83
+Step 1950 completed, total kinetic energy: 7745.78
+Step 1999 completed, total kinetic energy: 7748.7
+
+============================================ TIMING SUMMARY ============================================
+MAIN time-stepping loop                  ran 1    times; total 0.264368 s; avg 264367.516 µs
+Boundary condition left (inflow)         ran 2000 times; total 0.003968 s; avg 1.984 µs
+Boundary condition right (outflow)       ran 2000 times; total 0.003227 s; avg 1.613 µs
+Boundary condition bottom (reflective)   ran 2000 times; total 0.003681 s; avg 1.841 µs
+Boundary condition top (reflective)      ran 2000 times; total 0.003457 s; avg 1.729 µs
+Update interior (Lax-Friedrichs)         ran 2000 times; total 0.187470 s; avg 93.735 µs
+Copy back new -> old                     ran 2000 times; total 0.029020 s; avg 14.510 µs
+Kinetic energy sum                       ran 2000 times; total 0.032905 s; avg 16.453 µs
+========================================================================================================
